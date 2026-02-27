@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "skills/webhook.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "skills/webhook.ts"
+    }
+  ]
+}
