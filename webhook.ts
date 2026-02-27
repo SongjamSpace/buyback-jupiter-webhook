@@ -18,7 +18,7 @@ app.use(express.json());
 // Solana native mint (SOL)
 const SOL_MINT = new PublicKey("So11111111111111111111111111111111111111112");
 
-// Token to buy (BONED)
+// Token to buy (BONDED)
 const TOKEN_MINT = new PublicKey("4mVbX7EZonRcEfiyFbbw2ByrYc7xAkUMp3NKWhDwpump");
 
 // Jupiter API endpoint
@@ -182,8 +182,8 @@ async function executeBuy() {
   };
 }
 
-// Webhook endpoint to trigger the buy
-app.post("/webhook/buy-boned", async (req, res) => {
+// Webhook endpoint to trigger the buy via POST
+app.post("/webhook/buy-bonded", async (req, res) => {
   try {
     // Optional basic authentication
     const webhookSecret = process.env.WEBHOOK_SECRET;
@@ -193,7 +193,39 @@ app.post("/webhook/buy-boned", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized. Invalid WEBHOOK_SECRET." });
     }
 
-    console.log("Received webhook request to buy BONED...");
+    console.log("Received POST webhook request to buy BONDED...");
+    
+    // Execute buy logic
+    const result = await executeBuy();
+    
+    res.status(200).json({
+      success: true,
+      message: "Purchase successful",
+      data: result,
+      solscanUrl: `https://solscan.io/tx/${result.txid}`
+    });
+
+  } catch (error: any) {
+    console.error("Webhook purchase failed:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "An unknown error occurred"
+    });
+  }
+});
+
+// Simple GET endpoint to make it easy to trigger via browser for testing
+app.get("/webhook/buy-bonded", async (req, res) => {
+  try {
+    // Optional basic authentication (can be passed via query param for GET)
+    const webhookSecret = process.env.WEBHOOK_SECRET;
+    const providedSecret = req.query.secret;
+    
+    if (webhookSecret && providedSecret !== webhookSecret) {
+      return res.status(401).json({ error: "Unauthorized. Invalid secret parameter." });
+    }
+
+    console.log("Received GET webhook request to buy BONDED...");
     
     // Execute buy logic
     const result = await executeBuy();
@@ -219,9 +251,14 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "healthy" });
 });
 
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Webhook server listening on port ${PORT}`);
-  console.log(`Endpoint ready at POST /webhook/buy-boned`);
-});
+// Export the Express app for Vercel Serverless compatibility
+export default app;
+
+// Only start the server if not running in a serverless environment like Vercel
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Webhook server listening on port ${PORT}`);
+    console.log(`Endpoint ready at POST /webhook/buy-bonded`);
+  });
+}
